@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Map with Full Features</title>
+    <link rel="stylesheet" href="style.css" />
+    <script
+      src="https://kit.fontawesome.com/0980807b0f.js"
+      crossorigin="anonymous"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <style>
+      #map {
+        height: 800px;
+        width: 100%;
+        top: 50px;
+      }
+      .floating-menu {
+        position: absolute;
+        top: 130px;
+        left: 10px;
+        background-color: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+      }
+    </style>
+
+    <!-- 加載 Google Maps API -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDP-CwJ-QwOdUPU3mTycs-xLC2kyy2wAMY&loading=async&libraries=places&callback=initMap"
+      async
+      defer
+    ></script>
+  </head>
+  <body>
+    <nav>
+      <input type="checkbox" id="check" name="" value="" />
+      <label for="check" class="checkbtn">
+        <i class="fas fa-bars"></i>
+      </label>
+      <label class="logo">WebGis</label>
+      <ul>
+        <li><a href="index.html">路線圖</a></li>
+        <li><a href="gis.html">管線圖</a></li>
+        <li><a href="#">立體圖</a></li>
+      </ul>
+    </nav>
+
+    <div class="floating-menu">
+      <button id="clear-route-btn">清空路徑</button>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- 清空路徑按鈕 -->
+
+    <script>
+      let map;
+      let directionsService;
+      let points = [];
+      let currentPolyline = null;
+      let markers = [];
+
+      // 初始化地圖
+      function initMap() {
+        map = L.map("map").setView([25.033, 121.5654], 13); // 台北101
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+
+        // 初始化 Directions Service
+        directionsService = new google.maps.DirectionsService();
+
+        // 添加圖層切換功能
+        let openStreetMap = L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution: "&copy; OpenStreetMap contributors"
+          }
+        );
+        let googleMap = L.tileLayer(
+          "https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+          {
+            maxZoom: 20,
+            subdomains: ["mt0", "mt1", "mt2", "mt3"],
+            attribution: "&copy; Google Maps"
+          }
+        );
+
+        let baseMaps = {
+          OpenStreetMap: openStreetMap,
+          "Google Map": googleMap
+        };
+        L.control.layers(baseMaps).addTo(map);
+
+        // 點擊地圖時儲存座標
+        map.on("click", function (e) {
+          let marker = L.marker(e.latlng).addTo(map);
+          markers.push(marker); // 保存標記以便清除
+          points.push(e.latlng);
+
+          // 當有兩個點時，繪製路徑或使用 Google Directions API 計算最短路徑
+          if (points.length === 2) {
+            // 使用 Google Directions API 計算兩點的最短路徑
+            calculateRoute(points[0], points[1]);
+            points = []; // 重置點陣列以便下次繪製
+          }
+        });
+
+        // 清空路徑和標記按鈕
+        document
+          .getElementById("clear-route-btn")
+          .addEventListener("click", function () {
+            // 清空當前路徑
+            if (currentPolyline) {
+              map.removeLayer(currentPolyline);
+              currentPolyline = null;
+            }
+            // 清空所有標記
+            markers.forEach(function (marker) {
+              map.removeLayer(marker);
+            });
+            markers = []; // 清空標記列表
+          });
+      }
+
+      // 使用 Google Directions API 計算路徑
+      function calculateRoute(start, end) {
+        var request = {
+          origin: new google.maps.LatLng(start.lat, start.lng),
+          destination: new google.maps.LatLng(end.lat, end.lng),
+          travelMode: "DRIVING" // 也可使用 WALKING, BICYCLING, TRANSIT
+        };
+
+        directionsService.route(request, function (result, status) {
+          if (status === "OK") {
+            var route = result.routes[0].overview_path;
+            var leafletRoute = route.map(function (latlng) {
+              return [latlng.lat(), latlng.lng()];
+            });
+
+            // 移除舊的路徑（如果有）
+            if (currentPolyline) {
+              map.removeLayer(currentPolyline);
+            }
+
+            // 繪製新的路徑
+            currentPolyline = L.polyline(leafletRoute, { color: "blue" }).addTo(
+              map
+            );
+            map.fitBounds(currentPolyline.getBounds());
+          } else {
+            alert("Error: " + status);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -15,7 +15,7 @@ def parse_kml(file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
             tree = etree.parse(file)
             root = tree.getroot()
-        
+
             # 定義 KML 的命名空間
             ns = {'kml': 'http://www.opengis.net/kml/2.2'}
 
@@ -53,11 +53,11 @@ def parse_kml(file_path):
                     print(f"檔案 {file_path} 中的 Placemark {name} 找不到座標。")
     except Exception as e:
         print(f"解析 {file_path} 時發生錯誤: {e}")
-        
+
 # 插入資料到 PostGIS
 def insert_into_postgis(name, sectno, parcelno, polygon):
     geom_wkt = polygon.wkt  # 轉換為 WKT 格式 (Well-Known Text)
-    
+
     insert_query = """
         INSERT INTO kml_data (name, sectno, parcelno, geom)
         VALUES (%s, %s, %s, ST_GeomFromText(%s, 4326))
@@ -79,7 +79,8 @@ def parse_all_kml_files(directory):
 
 
 # 設定 KML 檔案所在的資料夾路徑
-directory = 'D:\\GitHub_P\\webGIs\\D_M_KML'
+directory = 'C:\\Users\\user\\Desktop\\WebInfo\\D_M_KML'
+
 
 # 呼叫函數解析所有 KML 檔案
 parse_all_kml_files(directory)

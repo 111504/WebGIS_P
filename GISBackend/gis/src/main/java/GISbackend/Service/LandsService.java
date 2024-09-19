@@ -8,17 +8,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 public class LandsService {
     private static final Logger log = LoggerFactory.getLogger(LandsService.class);
     @Autowired
     private LandsRepository landsRepository;
 
-    public Lands getLandsDataBySecnoAndParcelno(String  sectno,String parcelno) {
+    public ArrayList<Lands> getLandsDataBySecnoAndParcelno(String  sectno, String parcelno) {
         String landNumber=convertParcelnoToLandNumber(parcelno);
         System.out.println(landNumber);
         log.info("landNumber="+landNumber);
-        return landsRepository.findBySectionCodeAndLandNumber(sectno,landNumber);
+        return  landsRepository.findBySectionCodeAndLandNumber(sectno,landNumber);
 
     }
 

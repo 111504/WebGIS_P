@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="cache-control" content="no-cache" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
+  <title>Interactive Map with Full Features</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <script
+          src="https://kit.fontawesome.com/0980807b0f.js"
+          crossorigin="anonymous"
+  ></script>
+  <link rel="stylesheet" href="./leaflet/leaflet.css" />
+  <script src="./leaflet/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.rawgit.com/mapbox/wellknown/master/wellknown.js"></script>
+  <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
+
+  <!-- 加載 Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script src="js/OSMBuildings-Leaflet.js"></script>
+  <script src="./net/net.js"></script>
+  <style>
+    #map {
+      height: 800px;
+      width: 100%;
+      top: 50px;
+    }
+    .leaflet-top.leaflet-left {
+      margin-top: 50px; /* 為自定義按鈕預留空間 */
+    }
+    #draw-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <input type="checkbox" id="check" name="" value="" />
+  <label for="check" class="checkbtn">
+    <i class="fas fa-bars"></i>
+  </label>
+  <label class="logo">WebGis</label>
+  <ul>
+    <li><a href="index.html">地區資訊</a></li>
+<!--    <li><a href="diffpage.html">管線圖</a></li>-->
+  </ul>
+</nav>
+
+<div id="map"></div>
+<button id="draw-btn">繪畫管線</button>
+
+
+<script>
+
+  // 建立底圖
+  const map = L.map('map').setView([25.0330, 121.5654], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  // 建立三個圖層組
+  const waterPipeLayer = L.layerGroup().addTo(map);
+  const networkCableLayer = L.layerGroup();
+  const gasPipeLayer = L.layerGroup();
+
+  // points 儲存經緯度座標
+  // pointsMarkers 地圖上的標記點
+  const layerData = {
+    "自來水管": { points: [], pointsMarkers: [], lines: [] },
+    "網路線": { points: [], pointsMarkers: [], lines: [] },
+    "瓦斯管": { points: [], pointsMarkers: [], lines: [] }
+  };
+
+  // 添加圖層控制器
+  const overlays = {
+    "自來水管": waterPipeLayer,
+    "網路線": networkCableLayer,
+    "瓦斯管": gasPipeLayer
+  };
+
+  //決定圖層線段顏色
+  const overlaysColor={
+    "自來水管": 'blue',
+    "網路線": 'red',
+    "瓦斯管": 'yellow'
+  }
+
+  L.control.layers(null, overlays).addTo(map);
+
+  // 繪畫功能變量
+  let isDrawing = false;
+  let currentLayerName = "自來水管";  // 默認為第一圖層
+  let points = [];
+
+
+  // 根據當前圖層獲取點的圖標
+  function getIconForCurrentLayer() {
+    if (currentLayerName  === "自來水管") {
+      return L.icon({ iconUrl: './assets/icon/water.png', iconSize: [20, 20] });
+    } else if (currentLayerName  === "網路線") {
+      return L.icon({ iconUrl: './assets/icon/network.png', iconSize: [20, 20] });
+    } else if (currentLayerName  === "瓦斯管") {
+      return L.icon({ iconUrl: './assets/icon/gas.png', iconSize: [20, 20] });
+    }
+  }
+
+  // 地圖點擊事件
+  map.on('click', (e) => {
+    if (!isDrawing || !e.originalEvent.shiftKey) return;
+
+    // 創建點
+    const point = L.marker(e.latlng, { icon: getIconForCurrentLayer() }).addTo(overlays[currentLayerName]);
+    layerData[currentLayerName].points.push(e.latlng); // 保存點到對應圖層的點陣列
+    layerData[currentLayerName].pointsMarkers.push(point); // 保存點標記(icon)
+
+    // 如果有多個點，繪製線段
+    if (layerData[currentLayerName].points.length > 1) {
+      const lineColor = overlaysColor[currentLayerName]; // 根據圖層名稱決定線段顏色
+      const line = L.polyline(layerData[currentLayerName].points, { color: lineColor }).addTo(overlays[currentLayerName]);
+      layerData[currentLayerName].lines.push(line);
+    }
+  });
+
+  // 切換圖層時，更新當前圖層
+  map.on('overlayadd', (e) => {
+    currentLayerName = e.name;
+    // 重新繪製保存的點和線段
+    layerData[currentLayerName].points.forEach(point => point.addTo(overlays[currentLayerName]));
+    layerData[currentLayerName].lines.forEach(line => line.addTo(overlays[currentLayerName]));
+  });
+
+  // 隱藏圖層時，暫時移除點和線段
+  map.on('overlayremove', (e) => {
+    const layerName = e.name;
+    layerData[layerName].points.forEach(point => map.removeLayer(point));
+    layerData[layerName].lines.forEach(line => map.removeLayer(line));
+  });
+
+  // 切換繪畫模式時，清空暫存點
+  document.getElementById('draw-btn').addEventListener('click', () => {
+    isDrawing = !isDrawing;
+    if (isDrawing) {
+      alert('進入畫線段模式：按住 Shift + 左鍵來畫線');
+    } else {
+      alert('退出畫線段模式');
+      layerData[currentLayerName].points = []; // 清空當前圖層的暫存點
+    }
+  });
+</script>
+</body>
+</html>

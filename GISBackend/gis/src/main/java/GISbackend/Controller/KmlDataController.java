@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -104,12 +105,12 @@ public class KmlDataController {
      * @return 回傳地址訊息
      */
     @GetMapping("/sectno/{sectno}/parcelno/{parcelno}")
-    public ApiResponse<Lands> getLandsDataBySecnoAndParcelno(
+    public ApiResponse<ArrayList<Lands>> getLandsDataBySecnoAndParcelno(
             @PathVariable String sectno,
             @PathVariable String parcelno) {
 
         System.out.println("paracelno:"+parcelno);
-        Lands  lands=landsService.getLandsDataBySecnoAndParcelno(sectno,parcelno);
+        ArrayList<Lands> lands=landsService.getLandsDataBySecnoAndParcelno(sectno,parcelno);
         if (lands != null) {
            return ApiResponse.success(lands);
         }

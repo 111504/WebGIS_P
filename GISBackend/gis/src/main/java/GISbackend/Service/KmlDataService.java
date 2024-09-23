@@ -7,6 +7,7 @@ import GISbackend.Entity.KmlData;
 import GISbackend.Entity.KmlForm;
 import GISbackend.Repository.KmlDataRepository;
 import GISbackend.Repository.KmlFormRepository;
+import GISbackend.Util.Tool;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,13 +22,15 @@ import static GISbackend.Dto.KmlDataDTO.convertGeometryToWKT;
 @Service
 public class KmlDataService {
 
-    private KmlDataRepository kmlDataRepository;
-    private KmlFormRepository kmlFormRepository;
+    private final KmlDataRepository kmlDataRepository;
+    private final KmlFormRepository kmlFormRepository;
 
     public KmlDataService(KmlDataRepository kmlDataRepository, KmlFormRepository kmlFormRepository) {
         this.kmlDataRepository = kmlDataRepository;
         this.kmlFormRepository = kmlFormRepository;
     }
+
+
 
     /**
      * 根據地塊名稱查詢q
@@ -89,6 +92,8 @@ public class KmlDataService {
     }
 
 
+
+
     /**
      * 根據地圖範圍和分頁參數返回 KML Data
      * @param minLng 左下角經度
@@ -105,6 +110,36 @@ public class KmlDataService {
         System.out.println("根據經緯度渲染="+kmlDatas.size());
         return getKmlDataDTOS(kmlDatas);
     }
+    /**
+     * @param  town 城鎮姓名
+    * @param  sectionName
+     * */
+    public List<KmlDataDTO> findKmlDataByTownAndSectionName(String town, String sectionName) {
+
+        List<KmlData> kmlDatas = kmlDataRepository.findKmlDataByTownAndSectionName(town, sectionName);
+        return getKmlDataDTOS(kmlDatas);
+    }
+
+    public void updateLandNumbers() {
+        // 取出所有的 KmlData
+        List<KmlData> kmlDataList = kmlDataRepository.findAll();
+
+        // 遍历每一条 KmlData 记录
+        for (KmlData kmlData : kmlDataList) {
+            String parcelno = kmlData.getParcelno();
+
+            // 使用 convertParcelnoToLandNumber 轉換
+            String landNumber = Tool.convertParcelnoToLandNumber(parcelno);
+
+            // 更新 land_number
+            kmlData.setLandNumber(landNumber);
+        }
+
+        // 批量保存更新后的记录
+        kmlDataRepository.saveAll(kmlDataList);
+    }
+
+
 
 
     private List<KmlDataDTO> getKmlDataDTOS(List<KmlData> kmlDatas) {
@@ -127,6 +162,11 @@ public class KmlDataService {
         }
         return null;
     }
+
+
+
+
+
 
 
     public Optional<String> saveKmlForm(KmlFormDTO kmlFormDTO) {

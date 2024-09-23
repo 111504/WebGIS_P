@@ -1,6 +1,7 @@
 import psycopg2
 from lxml import etree
 import os
+import re
 
 # 連接到 PostgreSQL 資料庫
 conn = psycopg2.connect(
@@ -62,7 +63,7 @@ def insert_into_postgres(county, town, section_code, section_name, land_number, 
         ))
         conn.commit()
     except Exception as e:
-        # 打印所有參數以檢查它們的值
+       # 打印所有參數以檢查它們的值
         print("Inserting values:")
         print(f"county: {county}")
         print(f"town: {town}")
@@ -78,20 +79,44 @@ def insert_into_postgres(county, town, section_code, section_name, land_number, 
         print(f"owner_share_numerator: {owner_share_numerator}")
         print(f"owner_share_denominator: {owner_share_denominator}")
         print(f"manager_name: {manager_name}")
-
+        print(f"Error message: {e}")
+        # 拋出異常，終止程式
+        raise
 
 # 遍歷資料夾內的所有 XML 檔案並運行解析與插入過程
-def import_all_xml_in_directory(directory_path):
-    for filename in os.listdir(directory_path):
+def import_all_xml_in_directory(directory_path, start_after_file):
+    # 從檔案名中提取數字
+    def extract_number_from_filename(filename):
+        match = re.search(r'\d+', filename)
+        return int(match.group()) if match else None
+
+    start_number = extract_number_from_filename(start_after_file)
+    
+    start_processing = False  # 標誌用來判斷是否開始處理
+    for filename in sorted(os.listdir(directory_path)):
         if filename.endswith('.xml'):
             file_path = os.path.join(directory_path, filename)
-            parse_xml(file_path)
-            print(f"已匯入檔案: {filename}")
+            file_number = extract_number_from_filename(filename)
+            
+            # 檢查是否達到指定的開始點
+            if file_number and file_number > start_number:
+                start_processing = True
+            
+            # 如果已經達到指定的檔案後，才開始處理
+            if start_processing:
+                try:
+                    parse_xml(file_path)
+                    print(f"已匯入檔案: {filename}")
+                except Exception as e:
+                    print(f"檔案 {filename} 出現錯誤: {e}")
+                    # 終止程式
+                    raise
 
 # 運行解析與插入過程
 #parse_xml('D:\\GitHub_P\\webGIs\\D\\d_0072.xml')
-directory_path = 'C:\\Users\\user\\Desktop\\WebInfo\\D'
-import_all_xml_in_directory(directory_path)
+directory_path = 'C:\\Users\\user\\Desktop\\WebInfo\\D_XML'
+start_after_file = 'd_4436.xml'
+import_all_xml_in_directory(directory_path,start_after_file)
 
 # "C:\Users\user\Desktop\WebInfo\D"
 # 關閉連接

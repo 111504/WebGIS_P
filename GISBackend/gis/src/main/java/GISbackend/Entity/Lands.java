@@ -50,16 +50,16 @@ public class Lands {
     private String ownerId;
 
     @Column(name = "owner_share_numerator")
-    private Integer ownerShareNumerator;
+    private String ownerShareNumerator;
 
     @Column(name = "owner_share_denominator")
-    private Integer ownerShareDenominator;
+    private String ownerShareDenominator;
 
     @Column(name = "manager_name", length = 100)
     private String managerName;
 
 
-    public Lands(String county, String town, String sectionCode, String sectionName, String landNumber, Integer area, Integer marketValue, Integer landValue, String ownerName, String ownerType, String ownerId, Integer ownerShareNumerator, Integer ownerShareDenominator, String managerName) {
+    public Lands(String county, String town, String sectionCode, String sectionName, String landNumber, Integer area, Integer marketValue, Integer landValue, String ownerName, String ownerType, String ownerId, String ownerShareNumerator, String ownerShareDenominator, String managerName) {
         this.county = county;
         this.town = town;
         this.sectionCode = sectionCode;

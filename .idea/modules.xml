@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/WebGIS_P.iml" filepath="$PROJECT_DIR$/.idea/WebGIS_P.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GISBackend/gis/gis.iml" filepath="$PROJECT_DIR$/GISBackend/gis/gis.iml" />
     </modules>
   </component>
 </project>

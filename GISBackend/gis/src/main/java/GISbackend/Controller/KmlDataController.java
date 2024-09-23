@@ -8,6 +8,7 @@ import GISbackend.Entity.Lands;
 import GISbackend.Response.ApiResponse;
 import GISbackend.Service.KmlDataService;
 import GISbackend.Service.LandsService;
+import GISbackend.Util.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,7 +76,7 @@ public class KmlDataController {
     public ApiResponse<List<KmlDataDTO>> getKmlDataBySecno(@PathVariable String sectno) {
         List<KmlDataDTO> kmlDateDTOs= kmlDataService.getKmlDataBySecno(sectno);
         System.out.println(kmlDateDTOs);
-        if (kmlDateDTOs.size() > 0) {
+        if (!kmlDateDTOs.isEmpty()) {
             return ApiResponse.success(kmlDateDTOs);
         }else{
             return ApiResponse.error(404, "KML data not found");
@@ -117,6 +118,39 @@ public class KmlDataController {
            return ApiResponse.error(404, "查詢結果為空");
     }
     /**
+     * 根據段號名稱獲取詳細信息
+     *
+     * @param town 區明
+     * @param sectionname 段名
+     * @return 回傳地址訊息
+     */
+     @GetMapping("/town/{town}/selectName/{selectName}")
+     public  ApiResponse<List<KmlDataDTO>> getkmlDataByTownAndSelectName(
+             @PathVariable String town,
+             @PathVariable String selectName) {
+
+         System.out.println("town:"+town+"selectName:"+selectName);
+         List<KmlDataDTO> kmlDateDTOs= kmlDataService.findKmlDataByTownAndSectionName(town,selectName);
+         if (!kmlDateDTOs.isEmpty()) {
+             return ApiResponse.success(kmlDateDTOs);
+         }else{
+             return ApiResponse.error(404, "KML data not found");
+         }
+
+
+
+     }
+
+    @PostMapping("/update-land-numbers")
+    public ResponseEntity<String> updateLandNumbers() {
+        kmlDataService.updateLandNumbers();
+        return ResponseEntity.ok("Land numbers updated successfully.");
+    }
+
+
+
+
+    /**
      * 回傳所有sectno (sectno不重複)
      *
      *
@@ -132,6 +166,48 @@ public class KmlDataController {
             return ApiResponse.error(404, "sectnos data not found");
         }
     }
+
+
+    /**
+     * @param town 回傳所有城鎮姓名
+     *
+     *
+     * @return 地塊詳細信息
+     */
+    @GetMapping("/allTown")
+    public ApiResponse<List<String>> getAllTown() {
+        List<String> towns= landsService.findDistinctTown();
+
+        if (!towns.isEmpty()) {
+            return ApiResponse.success(towns);
+        }else{
+            return ApiResponse.error(404, "towns data not found");
+        }
+    }
+
+    @GetMapping("/town/{town}")
+    public ApiResponse<List<String>> getSectnoByTown(@PathVariable String town) {
+        if (town == null || town.trim().isEmpty()) {
+            return ApiResponse.error(400, "無效的town参数");
+        }
+        // 格式檢查
+        if (!town.matches("^[a-zA-Z\\u4e00-\\u9fa5\\s]+$")) {
+            return ApiResponse.error(400, "town格式不正確");
+        }
+
+        List<String> towns= landsService.findDistinctSectionCodeByTown(town);
+
+        if (!towns.isEmpty()) {
+            return ApiResponse.success(towns);
+        }else{
+            return ApiResponse.error(404, "towns data not found");
+        }
+    }
+
+
+
+
+
     @GetMapping("/test")
     public ApiResponse<KmlData> test() {
 

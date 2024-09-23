@@ -26,6 +26,9 @@ public class KmlData {
     @Column(name = "parcelno", length = 255)
     private String parcelno;
 
+    @Column(name = "land_number", length = 20)
+    private String landNumber;
+
     @Column(name = "geom", columnDefinition = "geometry(Polygon,4326)")
     private Geometry geom;
 
@@ -33,6 +36,14 @@ public class KmlData {
         this.name = name;
         this.sectno = sectno;
         this.parcelno = parcelno;
+        this.geom = geom;
+    }
+
+    public KmlData(String name, String sectno, String parcelno, String landNumber, Geometry geom) {
+        this.name = name;
+        this.sectno = sectno;
+        this.parcelno = parcelno;
+        this.landNumber = landNumber;
         this.geom = geom;
     }
 }

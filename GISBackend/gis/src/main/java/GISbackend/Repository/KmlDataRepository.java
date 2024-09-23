@@ -32,4 +32,15 @@ public interface KmlDataRepository extends JpaRepository<KmlData, Integer> {
 
     @Query("SELECT k FROM KmlData k WHERE ST_Intersects(k.geom, ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326))")
     List<KmlData> findByBounds(double minLng, double minLat, double maxLng, double maxLat, Pageable pageable);
+
+    @Query("SELECT K FROM KmlData K WHERE K.sectno = :sectno")
+    List<KmlData> findKmlDataBySectno(@Param("sectno") String secno);
+
+
+
+
+    @Query("SELECT k FROM KmlData k JOIN Lands l ON k.landNumber = l.landNumber WHERE l.town = :town AND l.sectionName = :sectionName")
+    List<KmlData> findKmlDataByTownAndSectionName(@Param("town") String town, @Param("sectionName") String sectionName);
+
+
 }

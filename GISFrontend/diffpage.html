@@ -14,12 +14,9 @@
   ></script>
   <link rel="stylesheet" href="./leaflet/leaflet.css" />
   <script src="./leaflet/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="https://cdn.rawgit.com/mapbox/wellknown/master/wellknown.js"></script>
+  <script src="axios/axios.js"></script>
+  <script src="wellknow/wellknown.js"></script>
   <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
-
-  <!-- 加載 Three.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <script src="js/OSMBuildings-Leaflet.js"></script>
   <script src="./net/net.js"></script>
@@ -34,7 +31,7 @@
     }
     #draw-btn {
       position: absolute;
-      top: 10px;
+      top: 80px;
       left: 10px;
       z-index: 1000;
       background-color: white;
@@ -42,66 +39,134 @@
       border-radius: 5px;
       cursor: pointer;
     }
+    #clear-selection-btn{
+      position: absolute;
+      top: 80px;
+      left: 100px;
+      z-index: 1000;
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #point-distance{
+      position: absolute;
+      top: 80px;
+      left: 150px;
+      z-index: 1000;
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #point-area{
+      position: absolute;
+      top: 80px;
+      left: 250px;
+      z-index: 1000;
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #info {
+      position: absolute;
+      top: 50px;
+      right: 10px;
+      width: 200px;
+      background-color: white;
+      padding: 10px;
+      border: 1px solid black;
+      z-index: 1000;
+    }
+    .result {
+      margin-bottom: 10px;
+    }
+
+    /* 調整圖層控制器的背景顏色和邊框 */
+    .leaflet-control-layers-expanded {
+      background-color: rgba(0, 0, 0, 0.8);  /* 背景設置為黑色並帶透明 */
+      border: 1px solid white;  /* 白色邊框 */
+      color: white;  /* 字體顏色設置為白色 */
+
+    }
+
+    /* 調整圖層名稱字體顏色 */
+    .leaflet-control-layers label {
+      color: white;  /* 設置字體顏色為白色 */
+      font-weight: bold;  /* 使字體變粗 */
+    }
+
+    /* 調整複選框和文字之間的間距 */
+    .leaflet-control-layers label {
+      padding-left: 10px;
+      margin-bottom: 5px;
+      font-size: 14px;  /* 調整字體大小 */
+    }
+
+    /* 調整複選框的顏色 */
+    .leaflet-control-layers-selector {
+      background-color: white;
+      border-color: white;
+    }
+
   </style>
 </head>
 <body>
 <nav>
-  <input type="checkbox" id="check" name="" value="" />
-  <label for="check" class="checkbtn">
-    <i class="fas fa-bars"></i>
-  </label>
   <label class="logo">WebGis</label>
   <ul>
     <li><a href="index.html">地區資訊</a></li>
-<!--    <li><a href="diffpage.html">管線圖</a></li>-->
   </ul>
 </nav>
 
 <div id="map"></div>
 <button id="draw-btn">繪畫管線</button>
-
-
+<button id="clear-selection-btn">清除管線</button>
+<button id="point-distance">距離量測</button>
+<button id="point-area">面積量測</button>
+<div id="info"></div>
 <script>
 
   // 建立底圖
-  const map = L.map('map').setView([25.0330, 121.5654], 13);
+  const map = L.map('map').setView([25.0330, 121.5654], 15);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-  // 建立三個圖層組
+
   const waterPipeLayer = L.layerGroup().addTo(map);
   const networkCableLayer = L.layerGroup();
   const gasPipeLayer = L.layerGroup();
 
-  // points 儲存經緯度座標
-  // pointsMarkers 地圖上的標記點
   const layerData = {
     "自來水管": { points: [], pointsMarkers: [], lines: [] },
     "網路線": { points: [], pointsMarkers: [], lines: [] },
     "瓦斯管": { points: [], pointsMarkers: [], lines: [] }
   };
 
-  // 添加圖層控制器
   const overlays = {
     "自來水管": waterPipeLayer,
     "網路線": networkCableLayer,
     "瓦斯管": gasPipeLayer
   };
 
-  //決定圖層線段顏色
-  const overlaysColor={
+  const overlaysColor = {
     "自來水管": 'blue',
     "網路線": 'red',
     "瓦斯管": 'yellow'
-  }
+  };
 
   L.control.layers(null, overlays).addTo(map);
 
-  // 繪畫功能變量
   let isDrawing = false;
-  let currentLayerName = "自來水管";  // 默認為第一圖層
+  let currentLayerName = "自來水管";
+  let selectedPoint = null;
+  let isDeleting = false;  // 表示是否處於刪除線段模式
+  let isMeasuringDistance = false;
+  let isMeasuringArea = false;
   let points = [];
+  let polygon = null;
+  let lines = [];
 
-
-  // 根據當前圖層獲取點的圖標
   function getIconForCurrentLayer() {
     if (currentLayerName  === "自來水管") {
       return L.icon({ iconUrl: './assets/icon/water.png', iconSize: [20, 20] });
@@ -112,48 +177,218 @@
     }
   }
 
-  // 地圖點擊事件
+
+  // 清除地圖上的標記和線條
+  function clearMap() {
+    if (polygon) {
+      map.removeLayer(polygon);
+      polygon = null;
+    }
+    lines.forEach(line => map.removeLayer(line));
+    lines = [];
+    document.getElementById('info').innerHTML = '';  // 清除結果顯示
+  }
+
+  // 顯示測量結果
+  function displayResult(text) {
+    const resultDiv = document.createElement('div');
+    resultDiv.className = 'result';
+    resultDiv.innerHTML = text;
+    document.getElementById('info').appendChild(resultDiv);
+  }
+
+
+
   map.on('click', (e) => {
     if (!isDrawing || !e.originalEvent.shiftKey) return;
 
-    // 創建點
-    const point = L.marker(e.latlng, { icon: getIconForCurrentLayer() }).addTo(overlays[currentLayerName]);
-    layerData[currentLayerName].points.push(e.latlng); // 保存點到對應圖層的點陣列
-    layerData[currentLayerName].pointsMarkers.push(point); // 保存點標記(icon)
+    // 如果已經有選擇的起始點，則繪製新線段
+    if (selectedPoint) {
+      const lineColor = overlaysColor[currentLayerName];
 
-    // 如果有多個點，繪製線段
-    if (layerData[currentLayerName].points.length > 1) {
-      const lineColor = overlaysColor[currentLayerName]; // 根據圖層名稱決定線段顏色
-      const line = L.polyline(layerData[currentLayerName].points, { color: lineColor }).addTo(overlays[currentLayerName]);
+      // 繪製從選擇的點到當前點的線段
+      const line = L.polyline([selectedPoint, e.latlng], {
+        color: lineColor,
+        weight: 5,   // 設置線段的粗細，值越大線越粗
+        opacity: 1   // 設置線段的透明度，1 表示完全不透明
+      }).addTo(overlays[currentLayerName]);
+
       layerData[currentLayerName].lines.push(line);
+
+      // 當處於刪除模式時，點擊線段刪除它
+      line.on('click', function (ev) {
+        if (isDeleting) {
+          ev.originalEvent.stopPropagation(); // 防止事件冒泡
+
+
+          // 取得該線段的兩個端點
+          const startPoint = line.getLatLngs()[0];
+          const endPoint = line.getLatLngs()[1];
+
+          // 從地圖上移除線段
+          overlays[currentLayerName].removeLayer(line);
+
+          // 從 layerData 中移除該線段
+          const index = layerData[currentLayerName].lines.indexOf(line);
+          if (index > -1) {
+            layerData[currentLayerName].lines.splice(index, 1);
+          }
+
+
+          // 檢查線段的兩個端點是否還與其他線段相連，如果沒有，則刪除它們
+          removeUnconnectedPoint(startPoint);
+          removeUnconnectedPoint(endPoint);
+        }
+      });
+      // 檢查標記點是否仍與其他線段相連，若無，則刪除該標記點
+      function removeUnconnectedPoint(point) {
+        const remainingLines = layerData[currentLayerName].lines;
+
+        // 檢查該點是否仍與其他線段相連
+        const isPointConnected = remainingLines.some(line => {
+          const latLngs = line.getLatLngs();
+          return latLngs[0].equals(point) || latLngs[1].equals(point);
+        });
+
+        // 如果該點不再與其他線段相連，則將其從地圖和 layerData 中刪除
+        if (!isPointConnected) {
+          const markerIndex = layerData[currentLayerName].points.findIndex(p => p.equals(point));
+          if (markerIndex > -1) {
+            // 從地圖上移除標記點
+            overlays[currentLayerName].removeLayer(layerData[currentLayerName].pointsMarkers[markerIndex]);
+            // 從資料中移除標記點
+            layerData[currentLayerName].points.splice(markerIndex, 1);
+            layerData[currentLayerName].pointsMarkers.splice(markerIndex, 1);
+          }
+        }
+      }
+      // 創建終點標記
+      const point = L.marker(e.latlng, { icon: getIconForCurrentLayer() }).addTo(overlays[currentLayerName]);
+      layerData[currentLayerName].points.push(e.latlng);
+      layerData[currentLayerName].pointsMarkers.push(point);
+
+      // 點擊新點，將其設為下一條線段的起點
+      point.on('click', function (ev) {
+        ev.originalEvent.stopPropagation(); // 防止事件冒泡
+        selectedPoint = point.getLatLng();  // 更新起點
+        points = [selectedPoint];  // 重新初始化 points，從新的起點開始
+      });
+
+      // 更新 selectedPoint 為新點
+      selectedPoint = e.latlng;
+
+    } else {
+      // 沒有選擇起始點，添加一個新的點，並在下一次點擊時繪製線段
+      const point = L.marker(e.latlng, { icon: getIconForCurrentLayer() }).addTo(overlays[currentLayerName]);
+      layerData[currentLayerName].points.push(e.latlng);
+      layerData[currentLayerName].pointsMarkers.push(point);
+
+      // 設置該點的點擊事件，將其作為下一條線段的起點
+      point.on('click', function (ev) {
+        ev.originalEvent.stopPropagation(); // 防止事件冒泡
+        selectedPoint = point.getLatLng();  // 設置起始點
+        points = [selectedPoint];  // 初始化 points 陣列，準備繪製線段
+      });
+
+      // 更新 selectedPoint 為當前點，這樣下一次點擊可以繪製線段
+      selectedPoint = e.latlng;
     }
   });
 
-  // 切換圖層時，更新當前圖層
+
+  // 地圖點擊事件
+  map.on('click', function(e) {
+    // 如果處於距離量測模式
+    if (isMeasuringDistance) {
+      if (points.length < 2) {
+        points.push(e.latlng);
+        L.marker(e.latlng).addTo(map);
+
+        if (points.length === 2) {
+          const distance = points[0].distanceTo(points[1]);
+          const distanceInKm = (distance / 1000).toFixed(2);
+          L.polyline(points, { color: 'blue' }).addTo(map);
+          displayResult(`距離: ${distanceInKm} 公里`);
+        }
+      }
+    }
+
+    // 如果處於面積量測模式
+    if (isMeasuringArea) {
+      points.push(e.latlng);
+      L.marker(e.latlng).addTo(map);
+
+      if (points.length >= 3) {
+        if (polygon) {
+          map.removeLayer(polygon);  // 移除之前的多邊形
+        }
+        polygon = L.polygon(points, { color: 'green', fillColor: 'green', fillOpacity: 0.5 }).addTo(map);
+
+        const area = L.GeometryUtil.geodesicArea(polygon.getLatLngs()[0]);  // 使用 Leaflet 提供的計算方法
+        const areaInSqKm = (area / 1000000).toFixed(2);  // 轉換為平方公里
+        displayResult(`面積: ${areaInSqKm} 平方公里`);
+      }
+    }
+  });
+
+
+
   map.on('overlayadd', (e) => {
     currentLayerName = e.name;
-    // 重新繪製保存的點和線段
-    layerData[currentLayerName].points.forEach(point => point.addTo(overlays[currentLayerName]));
+    // 清空 selectedPoint，防止與上一個圖層的最後一個點連線
+    selectedPoint = null;
+
+    layerData[currentLayerName].pointsMarkers.forEach(point => point.addTo(overlays[currentLayerName]));
     layerData[currentLayerName].lines.forEach(line => line.addTo(overlays[currentLayerName]));
   });
 
-  // 隱藏圖層時，暫時移除點和線段
   map.on('overlayremove', (e) => {
     const layerName = e.name;
-    layerData[layerName].points.forEach(point => map.removeLayer(point));
-    layerData[layerName].lines.forEach(line => map.removeLayer(line));
+
+    layerData[layerName].pointsMarkers.forEach(point => overlays[layerName].removeLayer(point));
+    layerData[layerName].lines.forEach(line => overlays[layerName].removeLayer(line));
   });
 
-  // 切換繪畫模式時，清空暫存點
   document.getElementById('draw-btn').addEventListener('click', () => {
     isDrawing = !isDrawing;
     if (isDrawing) {
       alert('進入畫線段模式：按住 Shift + 左鍵來畫線');
     } else {
       alert('退出畫線段模式');
-      layerData[currentLayerName].points = []; // 清空當前圖層的暫存點
+      selectedPoint = null;
     }
   });
+
+  document.getElementById('clear-selection-btn').addEventListener('click', () => {
+    isDeleting = !isDeleting;  // 切換刪除模式
+    if (isDeleting) {
+      alert('進入刪除線段模式，點擊線段以刪除');
+      document.getElementById('clear-selection-btn').textContent = '退出刪除線段模式';  // 更新按鈕文字
+    } else {
+      alert('退出刪除線段模式');
+      document.getElementById('clear-selection-btn').textContent = '刪除線段';  // 更新按鈕文字
+    }
+  });
+
+
+  // 切換到距離量測模式
+  document.getElementById('point-distance').addEventListener('click', () => {
+    isMeasuringDistance = true;
+    isMeasuringArea = false;
+    points = [];  // 清空點
+    clearMap();
+    alert('距離量測模式：點擊兩個點來測量距離');
+  });
+
+  // 切換到面積量測模式
+  document.getElementById('point-area').addEventListener('click', () => {
+    isMeasuringDistance = false;
+    isMeasuringArea = true;
+    points = [];  // 清空點
+    clearMap();
+    alert('面積量測模式：點擊三個或更多點來量測面積');
+  });
+
 </script>
 </body>
 </html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <title>Interactive Map with Full Features</title>
+    <link rel="stylesheet" href="./css/style.css" />
+    <!-- Leaflet CSS 和 JS -->
+    <link rel="stylesheet" href="./leaflet/leaflet.css" />
+    <script src="./leaflet/leaflet.js"></script>
+    <!-- Leaflet Draw 插件 -->
+    <link rel="stylesheet" href="./leaflet/draw/leaflet.draw.css" />
+    <script src="./leaflet/draw/leaflet.draw.js"></script>
+    <!-- GeometryUtil 插件 -->
+    <script src="./leaflet/geometryutil/leaflet.geometryutil.min.js"></script>
+    <script src="
+        https://cdn.jsdelivr.net/npm/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.min.js"></script>
+    <script
+            src="https://kit.fontawesome.com/0980807b0f.js"
+            crossorigin="anonymous"
+    ></script>
+    <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
+    <style>
+        #map {
+            height: 800px;
+            width: 100%;
+            top: 50px;
+        }
+
+        .map-btn {
+            position: absolute;
+            z-index: 1000;
+            background-color: white;
+            border: 1px solid #007bff;
+            color: #007bff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .map-btn:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        /* 調整每個按鈕的位置 */
+        #draw-btn { top: 80px; left: 10px; }
+        #clear-selection-btn { top: 80px; left: 130px; }
+        #point-distance { top: 80px; left: 270px; }
+        #point-area { top: 80px; left: 400px; }
+
+        /* 顯示結果的區塊 */
+        #info {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            width: 200px;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid black;
+            z-index: 1000;
+        }
+
+        .result {
+            margin-bottom: 10px;
+        }
+
+        /* Leaflet 圖層控制器樣式 */
+        .leaflet-control-layers-expanded {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 1px solid white;
+            color: white;
+        }
+
+        .leaflet-control-layers label {
+            color: white;
+            font-weight: bold;
+            padding-left: 10px;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .leaflet-control-layers-selector {
+            background-color: white;
+            border-color: white;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <label class="logo">WebGis</label>
+    <ul>
+        <li><a href="index.html">地區資訊</a></li>
+    </ul>
+</nav>
+<div id="map"></div>
+<button id="draw-btn" class="map-btn">繪畫管線</button>
+<button id="clear-selection-btn" class="map-btn">清除管線</button>
+<button id="point-distance" class="map-btn">距離量測</button>
+<button id="point-area" class="map-btn">面積量測</button>
+<div id="info"></div>
+
+<script>
+    // 建立地圖
+    const map = L.map('map').setView([25.0330, 121.5654], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const waterPipeLayer = L.layerGroup().addTo(map);
+    const networkCableLayer = L.layerGroup();
+    const gasPipeLayer = L.layerGroup();
+
+    const layerData = {
+        "自來水管": { points: [], pointsMarkers: [], lines: [] },
+        "網路線": { points: [], pointsMarkers: [], lines: [] },
+        "瓦斯管": { points: [], pointsMarkers: [], lines: [] }
+    };
+
+    const overlays = {
+        "自來水管": waterPipeLayer,
+        "網路線": networkCableLayer,
+        "瓦斯管": gasPipeLayer
+    };
+
+    const overlaysColor = {
+        "自來水管": 'blue',
+        "網路線": 'red',
+        "瓦斯管": 'yellow'
+    };
+
+    L.control.layers(null, overlays).addTo(map);
+
+    // 狀態變數
+    let isDrawing = false;
+    let currentLayerName = "自來水管";
+    let selectedPoint = null;
+    let isDeleting = false;
+    let isMeasuringDistance = false;
+    let isMeasuringArea = false;
+    let points = [];
+    let polygon = null;
+
+    // 獲取圖層對應的圖標
+    function getIconForCurrentLayer() {
+        switch (currentLayerName) {
+            case "自來水管":
+                return L.icon({ iconUrl: './assets/icon/water.png', iconSize: [20, 20] });
+            case "網路線":
+                return L.icon({ iconUrl: './assets/icon/network.png', iconSize: [20, 20] });
+            case "瓦斯管":
+                return L.icon({ iconUrl: './assets/icon/gas.png', iconSize: [20, 20] });
+            default:
+                return null;
+        }
+    }
+
+    // 清除地圖上的標記和線條
+    function clearMap() {
+        if (polygon) {
+            map.removeLayer(polygon);
+            polygon = null;
+        }
+        points = []; // 清空點
+        document.getElementById('info').innerHTML = ''; // 清除結果顯示
+    }
+
+    // 顯示測量結果
+    function displayResult(text) {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'result';
+        resultDiv.innerHTML = text;
+        document.getElementById('info').appendChild(resultDiv);
+    }
+
+    // 整合地圖點擊事件
+    map.on('click', (e) => {
+        if (isMeasuringDistance) {
+            handleDistanceMeasurement(e.latlng);
+        } else if (isMeasuringArea) {
+            handleAreaMeasurement(e.latlng);
+        } else if (isDrawing && e.originalEvent.shiftKey) {
+            handleLineDrawing(e.latlng);
+        }
+    });
+
+    // 處理距離量測
+    function handleDistanceMeasurement(latlng) {
+        points.push(latlng);
+        L.marker(latlng).addTo(map);
+
+        if (points.length === 2) {
+            const distance = points[0].distanceTo(points[1]);
+            const distanceInKm = (distance / 1000).toFixed(2);
+            L.polyline(points, { color: 'blue' }).addTo(map);
+            displayResult(`距離: ${distanceInKm} 公里`);
+            points = []; // 重置點數組
+        }
+    }
+
+    // 處理面積量測
+    function handleAreaMeasurement(latlng) {
+        points.push(latlng);
+        L.marker(latlng).addTo(map);
+
+        if (points.length >= 3) {
+            if (polygon) {
+                map.removeLayer(polygon);  // 移除之前的多邊形
+            }
+
+            // 檢查是否封閉多邊形：將第一個點作為多邊形的終點
+            const closedPoints = [...points, points[0]]; // 封閉多邊形
+            polygon = L.polygon(closedPoints, { color: 'green', fillColor: 'green', fillOpacity: 0.5 }).addTo(map);
+
+            const area = L.GeometryUtil.geodesicArea(polygon.getLatLngs()[0]);
+            console.log("area=",area);
+            const areaInSqKm = (area / 1000000).toFixed(2);
+            displayResult(`面積: ${areaInSqKm} 平方公里`);
+        }
+    }
+
+
+    // 處理繪製線段
+    function handleLineDrawing(latlng) {
+        if (selectedPoint) {
+            const lineColor = overlaysColor[currentLayerName];
+            const line = L.polyline([selectedPoint, latlng], { color: lineColor, weight: 5 }).addTo(overlays[currentLayerName]);
+            layerData[currentLayerName].lines.push(line);
+
+            // 點擊線段刪除
+            line.on('click', function (ev) {
+                if (isDeleting) {
+                    ev.originalEvent.stopPropagation(); // 防止事件冒泡
+
+                    const startPoint = line.getLatLngs()[0];
+                    const endPoint = line.getLatLngs()[1];
+
+                    overlays[currentLayerName].removeLayer(line); // 從地圖中移除該線段
+                    const index = layerData[currentLayerName].lines.indexOf(line);
+                    if (index > -1) {
+                        layerData[currentLayerName].lines.splice(index, 1); // 從資料中移除該線段
+                    }
+
+                    // 檢查該線段的兩個端點是否還與其他線段相連，否則將該端點移除
+                    removeUnconnectedPoint(startPoint);
+                    removeUnconnectedPoint(endPoint);
+                }
+            });
+
+            selectedPoint = latlng;
+        } else {
+            selectedPoint = latlng;
+        }
+
+        // 添加新標記點
+        const point = L.marker(latlng, { icon: getIconForCurrentLayer() }).addTo(overlays[currentLayerName]);
+        layerData[currentLayerName].points.push(latlng);
+        layerData[currentLayerName].pointsMarkers.push(point);
+
+        // 點擊新標記點繼續繪製
+        point.on('click', function (ev) {
+            ev.originalEvent.stopPropagation(); // 防止事件冒泡
+            selectedPoint = point.getLatLng();
+        });
+    }
+    // 檢查標記點是否仍與其他線段相連，若無，則刪除該標記點
+    function removeUnconnectedPoint(point) {
+        const remainingLines = layerData[currentLayerName].lines;
+        const isPointConnected = remainingLines.some(line => {
+            const latLngs = line.getLatLngs();
+            return latLngs[0].equals(point) || latLngs[1].equals(point);
+        });
+
+        if (!isPointConnected) {
+            const markerIndex = layerData[currentLayerName].points.findIndex(p => p.equals(point));
+            if (markerIndex > -1) {
+                overlays[currentLayerName].removeLayer(layerData[currentLayerName].pointsMarkers[markerIndex]);
+                layerData[currentLayerName].points.splice(markerIndex, 1);
+                layerData[currentLayerName].pointsMarkers.splice(markerIndex, 1);
+            }
+        }
+    }
+
+    // 按鈕事件綁定
+    document.getElementById('draw-btn').addEventListener('click', () => {
+        isDrawing = !isDrawing;
+        selectedPoint = null;
+        alert(isDrawing ? '進入畫線段模式' : '退出畫線段模式');
+    });
+
+    document.getElementById('clear-selection-btn').addEventListener('click', () => {
+        isDeleting = !isDeleting;
+        alert(isDeleting ? '進入刪除線段模式' : '退出刪除線段模式');
+    });
+
+    document.getElementById('point-distance').addEventListener('click', () => {
+        isMeasuringDistance = true;
+        isMeasuringArea = false;
+        clearMap();
+        alert('距離量測模式：點擊兩個點來測量距離');
+    });
+
+    document.getElementById('point-area').addEventListener('click', () => {
+        isMeasuringDistance = false;
+        isMeasuringArea = true;
+        clearMap();
+        alert('面積量測模式：點擊三個或更多點來量測面積');
+    });
+
+    // 圖層切換
+    map.on('overlayadd', (e) => {
+        currentLayerName = e.name;
+        selectedPoint = null; // 切換圖層時清空起點
+        layerData[currentLayerName].pointsMarkers.forEach(point => point.addTo(overlays[currentLayerName]));
+        layerData[currentLayerName].lines.forEach(line => line.addTo(overlays[currentLayerName]));
+    });
+
+    map.on('overlayremove', (e) => {
+        const layerName = e.name;
+        layerData[layerName].pointsMarkers.forEach(point => overlays[layerName].removeLayer(point));
+        layerData[layerName].lines.forEach(line => overlays[layerName].removeLayer(line));
+    });
+
+</script>
+</body>
+</html>

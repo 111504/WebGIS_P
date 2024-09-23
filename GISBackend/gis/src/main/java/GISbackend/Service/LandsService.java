@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+import static GISbackend.Util.Tool.convertParcelnoToLandNumber;
+
 @Service
 public class LandsService {
     private static final Logger log = LoggerFactory.getLogger(LandsService.class);
@@ -19,23 +21,37 @@ public class LandsService {
 
     public ArrayList<Lands> getLandsDataBySecnoAndParcelno(String  sectno, String parcelno) {
         String landNumber=convertParcelnoToLandNumber(parcelno);
-        System.out.println(landNumber);
-        log.info("landNumber="+landNumber);
+
         return  landsRepository.findBySectionCodeAndLandNumber(sectno,landNumber);
 
     }
 
-    public String convertParcelnoToLandNumber(String parcelNumber) {
-        // 檢查是否包含 "-"
-        if (parcelNumber.contains("-")) {
-            String[] parts = parcelNumber.split("-");
-            String leftPart = String.format("%04d", Integer.parseInt(parts[0]));  // 處理左邊部分
-            String rightPart = String.format("%04d", Integer.parseInt(parts[1])); // 處理右邊部分
-            return leftPart + rightPart;
-        } else {
-            // 如果沒有 "-"，右邊補零到 8 位數
-            return String.format("%04d", Integer.parseInt(parcelNumber)) + "0000";
-        }
+
+    /**
+     * 回傳所有 towns (不重複)
+     *
+     * @return String 列表 詳細信息 城鎮名稱
+     */
+    public List<String> findDistinctTown() {
+
+        return landsRepository.findDistinctTowm();
     }
+
+    /**
+     *  town名稱
+     *
+     * @return  sectionCode 列表
+     */
+    public List<String> findDistinctSectionCodeByTown(String town){
+        return landsRepository.findDistinctSectionCodeByTown(town);
+    }
+    /**
+    * @return  land numbers的列表
+    **/
+    public ArrayList<String> getLandNumberByTownAndSelectName(String town, String selectName) {
+        return landsRepository.findLandNumberByTownAndSelectName(town,selectName);
+    }
+
+
 
 }

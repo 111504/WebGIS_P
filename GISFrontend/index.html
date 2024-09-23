@@ -14,13 +14,11 @@
     ></script>
     <link rel="stylesheet" href="./leaflet/leaflet.css" />
     <script src="./leaflet/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.rawgit.com/mapbox/wellknown/master/wellknown.js"></script>
+<!--    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>-->
+    <script src="axios/axios.js"></script>
+<!--    <script src="https://cdn.rawgit.com/mapbox/wellknown/master/wellknown.js"></script>-->
+      <script src="wellknow/wellknown.js"></script>
     <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
-
-    <!-- 加載 Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script src="js/OSMBuildings-Leaflet.js"></script>
     <script src="./net/net.js"></script>
     <style>
@@ -53,7 +51,7 @@
       <label class="logo">WebGis</label>
       <ul>
 <!--        <li><a href="index.html">地區資訊</a></li>-->
-        <li><a href="diffpage.html">管線圖</a></li>
+        <li><a href="toolpage.html">管線圖</a></li>
       </ul>
     </nav>
     <!-- 搜尋欄 -->
@@ -62,6 +60,16 @@
         <!-- 動態加載的 `sectno` 選項會填充到這裡 -->
       </select>
       <button id="search-sectno-btn">搜尋</button>
+       <!-- 分開 -->
+        <select id="town-select">
+            <!-- 動態加載的 城鎮姓名 選項會填充到這裡 -->
+        </select>
+
+        <select id="section-name-select">
+            <!-- 動態加載的 段號名稱 選項會填充到這裡 -->
+        </select>
+
+        <button id="search-kml-btn">搜尋</button>
     </div>
 
 
@@ -395,13 +403,10 @@ function loadVisibleKmlData() {
       //   });
 
       function dealLandsData(landInfolist) {
-          console.log("landInfolist=", landInfolist);
           let item = document.createElement("p");
           if(landInfolist.length === 0) {
-            console.log("資料為空")
             item.innerHTML = `
-            <p><strong>資料內容:</strong>後端查無資料</p>`
-          }
+            <p><strong>資料內容:</strong>後端查無資料</p>`}
           else{
             let landInfo = landInfolist[0]
               item.innerHTML = `
@@ -412,7 +417,6 @@ function loadVisibleKmlData() {
                 <p><strong>段號名稱:</strong>${landInfo.town}</p>
                 <p><strong>面積:</strong>${landInfo.area}</p>
               `;
-
           }
           let info = document.getElementById("info-content");
           info.appendChild(item);
@@ -421,6 +425,7 @@ function loadVisibleKmlData() {
     // 當頁面加載完成後調用此函數來加載 sectno 的選項
     document.addEventListener("DOMContentLoaded", function () {
       loadSectnoOptions();
+      loadTownsOptions();
     });
 
         // 用來從 API 加載 `sectno` 選項並填充到多選單
@@ -444,6 +449,67 @@ function loadVisibleKmlData() {
           console.error("Error fetching sectno options:", error);
         });
     }
+
+      // 用來從 API 加載 `sectno` 選項並填充到多選單
+      function loadTownsOptions() {
+          axios
+              .get("http://localhost:8080/api/kml-data/allTown")
+              .then((response) => {
+                  // 從回應中獲取 town 資料
+                  const townList = response.data.data;
+                  const select = document.getElementById("town-select");
+
+                  // 將每個 town 加入到多選單中
+                  townList.forEach((town) => {
+                      const option = document.createElement("option");
+                      option.value = town;
+                      option.text = town;
+                      select.appendChild(option);
+                  });
+
+                   //默認載入第一個選項
+                   const event = new Event('change');
+                   select.dispatchEvent(event);
+              })
+              .catch((error) => {
+                  console.error("Error fetching town options:", error);
+              });
+      }
+
+
+      document.getElementById("town-select").addEventListener("change", function() {
+          const selectedTown = this.value;
+          loadSectionsByTown(selectedTown);
+      });
+
+      // 加载section选项
+      function loadSectionsByTown(town) {
+          const sectionSelect = document.getElementById("section-name-select");
+          sectionSelect.innerHTML = "";
+
+          if (!town || town.trim() === "") {
+              console.error("Invalid town name");
+              return;
+          }
+
+          axios
+              .get(`http://localhost:8080/api/kml-data/town/${encodeURIComponent(town)}`)
+              .then((response) => {
+                  const sectionList = response.data.data;
+
+                  sectionList.forEach((section) => {
+                      const option = document.createElement("option");
+                      option.value = section;
+                      option.text = section;
+                      sectionSelect.appendChild(option);
+                  });
+
+
+              })
+              .catch((error) => {
+                  console.error("Error fetching sections:", error);
+              });
+      }
 // 清空地圖上的所有圖層
 function clearMap() {
   map.eachLayer((layer) => {
@@ -483,6 +549,41 @@ function clearMap() {
           alert("請選擇一個段號");
         }
       });
+
+
+      // 處理搜尋按鈕的點擊事件
+      document
+          .getElementById("search-kml-btn")
+          .addEventListener("click", function () {
+              const town = document.getElementById("town-select");
+              const sectionName = document.getElementById("section-name-select");
+              const townSelect = town.value;
+              const sectionNameSelect = sectionName.value;
+            
+
+              
+              if (town&&sectionName) {
+                console.log("選擇區域",townSelect,"段號名稱",sectionNameSelect)
+                  // 在繪製之前清空地圖
+                  clearMap();
+                  getKMLData(
+                      `http://localhost:8080/api/kml-data/town/${townSelect}/selectName/${sectionNameSelect}`
+                  ).then((kmlData) => {
+                      console.log("town-select",kmlData)
+                      drawGeoJSONOnMap(kmlData)
+
+                  }).catch((error) => {
+                      // 在這裡處理錯誤
+                      console.error(
+                              "Error request api/kml-data/test",
+                              error
+                      );
+                  });
+                
+              } else {
+                  alert("請選擇一個段號");
+              }
+          });
 
     </script>
   </body>

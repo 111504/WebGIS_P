@@ -7,9 +7,9 @@ function getKMLData(apiUrl) {
            // 返回處理好的 KML 數據
            return response.data.data;  // 假設返回的數據結構是 { data: ... }
         }
-        if(response.data.status == '404' ){
-          console.warn("Error"+response.data.message)
-       }
+        else {
+            console.warn("Error: " + response.data.message);
+        }
       })
       .catch(error => {
         console.error("Error fetching KML data:", error);

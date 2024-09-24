@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface KmlFormRepository extends JpaRepository<KmlForm, Integer> {
+
 }

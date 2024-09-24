@@ -25,16 +25,18 @@ public class KmlForm {
     @Column(name = "latlng", length = 100)
     private String latlng;
 
+    @Column(name = "location", length = 100)
+    private String location;
 
     @Column(name = "description", length = 100)
     private String description;
 
 
-    public KmlForm(String description, String latlng, LocalDateTime time) {
-        this.description = description;
-        this.latlng = latlng;
+    public KmlForm(LocalDateTime time, String latlng, String location, String description) {
         this.time = time;
+        this.latlng = latlng;
+        this.location = location;
+        this.description = description;
     }
-
 }
 

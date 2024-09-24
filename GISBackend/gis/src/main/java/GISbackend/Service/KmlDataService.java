@@ -169,24 +169,5 @@ public class KmlDataService {
 
 
 
-    public Optional<String> saveKmlForm(KmlFormDTO kmlFormDTO) {
-        try {
-            System.out.println(kmlFormDTO);
-            KmlForm kmlForm = new KmlForm();
-            kmlForm.setTime(kmlFormDTO.getTime());
-            kmlForm.setLatlng(kmlFormDTO.getLatlng());
-            kmlForm.setDescription(kmlFormDTO.getDescription());
-            System.out.println(kmlForm);
-            KmlForm savedKmlForm =  kmlFormRepository.save(kmlForm);
-            System.out.println("returne "+savedKmlForm);
-// 使用      // Optional.ofNullable 來包裝返回消息
-            return Optional.ofNullable(savedKmlForm.getId())
-                    .map(id -> "KML data saved successfully with ID: " + id);
-        }
-        catch (Exception e) {
-            // 捕獲異常並返回空的 Optional
-            return Optional.empty();
-        }
 
-    }
 }

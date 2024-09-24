@@ -7,6 +7,7 @@ import GISbackend.Entity.KmlData;
 import GISbackend.Entity.Lands;
 import GISbackend.Response.ApiResponse;
 import GISbackend.Service.KmlDataService;
+import GISbackend.Service.KmlFormService;
 import GISbackend.Service.LandsService;
 import GISbackend.Util.Tool;
 import org.slf4j.Logger;
@@ -26,13 +27,15 @@ import java.util.Optional;
 public class KmlDataController {
 
     private static final Logger logger = LoggerFactory.getLogger(KmlDataController.class);
-    @Autowired
-    private KmlDataService kmlDataService;
-    private final LandsService landsService;
 
-    public KmlDataController(LandsService landsService,KmlDataService kmlDataService) {
+    private final KmlDataService kmlDataService;
+    private final LandsService landsService;
+    private final KmlFormService kmlFormService;
+
+    public KmlDataController(LandsService landsService, KmlDataService kmlDataService, KmlFormService kmlFormService) {
         this.landsService = landsService;
         this.kmlDataService = kmlDataService;
+        this.kmlFormService = kmlFormService;
     }
 
     /**
@@ -207,7 +210,6 @@ public class KmlDataController {
 
 
 
-
     @GetMapping("/test")
     public ApiResponse<KmlData> test() {
 
@@ -253,8 +255,22 @@ public class KmlDataController {
     @PostMapping("/saveKmlForm")
     public ApiResponse<String> saveKmlData(@RequestBody KmlFormDTO kmlFormDTO) {
         System.out.println("kmlFormDTO:"+kmlFormDTO);
-        return kmlDataService.saveKmlForm(kmlFormDTO)
+        return kmlFormService.saveKmlForm(kmlFormDTO)
                 .map(ApiResponse::success)
                 .orElseGet(() -> ApiResponse.error(500, "Failed to save KML data"));
     }
+    /**
+     *
+     * @return ApiResponse 所有的kmlForm資訊
+     */
+    @GetMapping("/allKmlForm")
+    public ApiResponse<List<KmlFormDTO>> getAllKmlForm() {
+        List<KmlFormDTO> kmlFormDatas=  kmlFormService.getAllKmlFormData();
+        if (kmlFormDatas == null || kmlFormDatas.isEmpty()) {
+            return ApiResponse.error(404, "No KML forms found.");
+        }
+
+        return ApiResponse.success(kmlFormDatas);
+    }
+
 }

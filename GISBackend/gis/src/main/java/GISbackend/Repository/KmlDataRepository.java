@@ -39,7 +39,7 @@ public interface KmlDataRepository extends JpaRepository<KmlData, Integer> {
 
 
 
-    @Query("SELECT k FROM KmlData k JOIN Lands l ON k.landNumber = l.landNumber WHERE l.town = :town AND l.sectionName = :sectionName")
+    @Query("SELECT k FROM KmlData k LEFT JOIN Lands l ON k.landNumber = l.landNumber AND k.sectno = l.sectionCode WHERE l.town = :town AND l.sectionName = :sectionName")
     List<KmlData> findKmlDataByTownAndSectionName(@Param("town") String town, @Param("sectionName") String sectionName);
 
 

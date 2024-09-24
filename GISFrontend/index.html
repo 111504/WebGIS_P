@@ -115,6 +115,10 @@
 
       //標記
       let markingEnabled = false;
+      let isRealTimeRefresh = true;
+
+      const refreshButton = document.getElementById('flag-of-reflash');
+      refreshButton.textContent = '當前模式: 及時刷新模式';
 
 
       document.getElementById('mark-btn').addEventListener('click',()=>{
@@ -153,9 +157,27 @@
 
       let kmlLayerGroup = L.layerGroup().addTo(map); // 用於存放 KML 資料的圖層
       // 監聽地圖的移動和縮放事件
-      map.on('moveend', function() {
-        console.log("移動地圖觸發")
-      loadVisibleKmlData();
+      function onMapMoveEnd() {
+          console.log("移動地圖觸發");
+          loadVisibleKmlData();
+      }
+
+      // Initially add the moveend event listener
+      map.on('moveend', onMapMoveEnd);
+      // Add event listener to the button to toggle modes
+      refreshButton.addEventListener('click', function() {
+          isRealTimeRefresh = !isRealTimeRefresh;
+          if (isRealTimeRefresh) {
+              // Update button text
+              this.textContent = '當前模式: 及時刷新模式';
+              // Add the moveend listener back
+              map.on('moveend', onMapMoveEnd);
+          } else {
+              // Update button text
+              this.textContent = '當前模式: 查詢模式';
+              // Remove the moveend listener
+              map.off('moveend', onMapMoveEnd);
+          }
       });
 
       map.on('click', (event) => {
